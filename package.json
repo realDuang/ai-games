@@ -1,0 +1,23 @@
+{
+  "name": "ai-games",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AI Games Monorepo",
+  "scripts": {
+    "dev:mine-sweeper": "pnpm --filter mine-sweeper dev",
+    "build:mine-sweeper": "pnpm --filter mine-sweeper build",
+    "lint": "pnpm --filter mine-sweeper lint",
+    "prepare": "husky",
+    "lint-staged": "lint-staged"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3",
+    "husky": "^8.0.0",
+    "lint-staged": "^15.0.0"
+  },
+  "lint-staged": {
+    "packages/*/src/**/*.{js,jsx,ts,tsx}": [
+      "pnpm lint"
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./games/mine-sweeper/tsconfig.app.json" },
+    { "path": "./games/mine-sweeper/tsconfig.node.json" }
+  ]
+}
