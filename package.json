@@ -7,9 +7,11 @@
   "scripts": {
     "dev:mine": "pnpm --recursive --parallel --filter mine-sweeper dev",
     "dev:snake": "pnpm --recursive --parallel --filter snake dev",
+    "dev:gomoku": "pnpm --recursive --parallel --filter gomoku dev",
     "build": "pnpm --recursive --verbose --stream build",
     "build:mine": "pnpm --filter mine-sweeper build",
     "build:snake": "pnpm --filter snake build",
+    "build:gomoku": "pnpm --filter snake gomoku",
     "lint": "eslint .",
     "prepare": "husky",
     "lint-staged": "lint-staged"
