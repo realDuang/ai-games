@@ -2,24 +2,34 @@
   "name": "ai-games",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "description": "AI Games Monorepo",
   "scripts": {
-    "dev:mine": "pnpm --filter mine-sweeper dev",
+    "dev:mine": "pnpm --recursive --parallel --filter mine-sweeper dev",
+    "dev:snake": "pnpm --recursive --parallel --filter snake dev",
+    "build": "pnpm --recursive --verbose --stream build",
     "build:mine": "pnpm --filter mine-sweeper build",
-    "dev:snake": "pnpm --filter snake dev",
     "build:snake": "pnpm --filter snake build",
-    "lint": "pnpm --filter mine-sweeper lint",
-    "lint:snake": "pnpm --filter snake lint",
+    "lint": "eslint .",
     "prepare": "husky",
     "lint-staged": "lint-staged"
   },
   "devDependencies": {
-    "typescript": "^5.5.3",
+    "@eslint/js": "^9.9.1",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^9.9.1",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.11",
+    "globals": "^15.9.0",
     "husky": "^8.0.0",
-    "lint-staged": "^15.0.0"
+    "lint-staged": "^15.0.0",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.3.0"
   },
   "lint-staged": {
-    "games/*/src/**/*.{js,jsx,ts,tsx}": [
+    "packages/*/src/**/*.{js,jsx,ts,tsx}": [
       "pnpm lint"
     ]
   }

@@ -1,5 +1,4 @@
-import React from 'react';
-import { GameState, GameSettings, Point, CELL_SIZE } from '../types';
+import { GameState, GameSettings, CELL_SIZE } from '../types';
 
 interface GameBoardProps {
   gameState: GameState;
@@ -9,12 +8,6 @@ interface GameBoardProps {
 export function GameBoard({ gameState, settings }: GameBoardProps) {
   const { snake, apples } = gameState;
   const boardSize = settings.gridSize * CELL_SIZE;
-
-  const isSnakeCell = (x: number, y: number) => 
-    snake.some(segment => segment.x === x && segment.y === y);
-
-  const isAppleCell = (x: number, y: number) =>
-    apples.some(apple => apple.x === x && apple.y === y);
 
   return (
     <div 
