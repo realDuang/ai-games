@@ -4,9 +4,12 @@
   "version": "1.0.0",
   "description": "AI Games Monorepo",
   "scripts": {
-    "dev:mine-sweeper": "pnpm --filter mine-sweeper dev",
-    "build:mine-sweeper": "pnpm --filter mine-sweeper build",
+    "dev:mine": "pnpm --filter mine-sweeper dev",
+    "build:mine": "pnpm --filter mine-sweeper build",
+    "dev:snake": "pnpm --filter snake dev",
+    "build:snake": "pnpm --filter snake build",
     "lint": "pnpm --filter mine-sweeper lint",
+    "lint:snake": "pnpm --filter snake lint",
     "prepare": "husky",
     "lint-staged": "lint-staged"
   },
@@ -16,7 +19,7 @@
     "lint-staged": "^15.0.0"
   },
   "lint-staged": {
-    "packages/*/src/**/*.{js,jsx,ts,tsx}": [
+    "games/*/src/**/*.{js,jsx,ts,tsx}": [
       "pnpm lint"
     ]
   }
