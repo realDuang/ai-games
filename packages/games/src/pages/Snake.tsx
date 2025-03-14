@@ -1,21 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { GameBoard } from './components/GameBoard';
-import { GameControls } from './components/GameControls';
-import { GameHistory } from './components/GameHistory';
-import { GameOverModal } from './components/GameOverModal';
-import { useGameLogic } from './hooks/useGameLogic';
-import { GameSettings, GameRecord, Direction } from './types';
-import { Settings, History } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Settings, History, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
+import { GameBoard } from "../modules/snake/components/GameBoard";
+import { GameControls } from "../modules/snake/components/GameControls";
+import { GameHistory } from "../modules/snake/components/GameHistory";
+import { GameOverModal } from "../modules/snake/components/GameOverModal";
+import { useGameLogic } from "../modules/snake/hooks/useGameLogic";
+import { GameSettings, GameRecord, Direction } from "../modules/snake/types";
 
-function App() {
+function Snake() {
   const [settings, setSettings] = useState<GameSettings>({
     speed: 5,
     gridSize: 20,
-    appleCount: 3
+    appleCount: 3,
   });
 
   const [records, setRecords] = useState<GameRecord[]>(() => {
-    const saved = localStorage.getItem('snakeGameRecords');
+    const saved = localStorage.getItem("snakeGameRecords");
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -29,25 +30,25 @@ function App() {
       const newRecord: GameRecord = {
         date: new Date().toLocaleString(),
         score: gameState.score,
-        settings: settings
+        settings: settings,
       };
       const updatedRecords = [newRecord, ...records].slice(0, 10);
       setRecords(updatedRecords);
-      localStorage.setItem('snakeGameRecords', JSON.stringify(updatedRecords));
+      localStorage.setItem("snakeGameRecords", JSON.stringify(updatedRecords));
     }
   }, [gameState.isGameOver]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       const keyDirections: { [key: string]: Direction } = {
-        ArrowUp: 'UP',
-        ArrowDown: 'DOWN',
-        ArrowLeft: 'LEFT',
-        ArrowRight: 'RIGHT',
-        w: 'UP',
-        s: 'DOWN',
-        a: 'LEFT',
-        d: 'RIGHT'
+        ArrowUp: "UP",
+        ArrowDown: "DOWN",
+        ArrowLeft: "LEFT",
+        ArrowRight: "RIGHT",
+        w: "UP",
+        s: "DOWN",
+        a: "LEFT",
+        d: "RIGHT",
       };
 
       const direction = keyDirections[e.key.toLowerCase()];
@@ -56,8 +57,8 @@ function App() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, [changeDirection]);
 
   const handleSettingsChange = (newSettings: GameSettings) => {
@@ -67,13 +68,22 @@ function App() {
 
   const clearHistory = () => {
     setRecords([]);
-    localStorage.removeItem('snakeGameRecords');
+    localStorage.removeItem("snakeGameRecords");
     setShowHistory(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-4xl mx-auto">
+        <div className="mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>回到首页</span>
+          </Link>
+        </div>
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-4xl font-bold">贪吃蛇</h1>
           <div className="flex items-center gap-4">
@@ -95,7 +105,10 @@ function App() {
         </div>
 
         <div className="text-center mb-4">
-          <p className="text-2xl text-gray-300">得分: <span className="font-bold text-white">{gameState.score}</span></p>
+          <p className="text-2xl text-gray-300">
+            得分:{" "}
+            <span className="font-bold text-white">{gameState.score}</span>
+          </p>
         </div>
 
         <div className="flex justify-center">
@@ -127,4 +140,4 @@ function App() {
   );
 }
 
-export default App;
+export default Snake;

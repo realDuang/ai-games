@@ -23,7 +23,7 @@ export interface GameRecord {
   settings: GameSettings;
 }
 
-export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+export type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 
 export const CELL_SIZE = 20; // pixels
 export const INITIAL_SNAKE_LENGTH = 3;

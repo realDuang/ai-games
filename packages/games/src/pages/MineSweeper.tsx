@@ -1,38 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Timer, Bomb, RefreshCw, History } from 'lucide-react';
-import { Board } from './components/Board';
-import { SettingsModal } from './components/SettingsModal';
-import { GameOverModal } from './components/GameOverModal';
-import { HistoryModal } from './components/HistoryModal';
-import { GameState, CellState, GameHistory } from './types';
-import { v4 as uuidv4 } from 'uuid';
+import { useState, useEffect } from "react";
+import {
+  Settings,
+  Timer,
+  Bomb,
+  RefreshCw,
+  History,
+  ArrowLeft,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
+import { Board } from "../modules/mineSweeper/components/Board";
+import { SettingsModal } from "../modules/mineSweeper/components/SettingsModal";
+import { GameOverModal } from "../modules/mineSweeper/components/GameOverModal";
+import { HistoryModal } from "../modules/mineSweeper/components/HistoryModal";
+import {
+  GameState,
+  CellState,
+  GameHistory,
+} from "../modules/mineSweeper/types";
 
-function App() {
+function MineSweeper() {
   const [settings, setSettings] = useState({
     width: 10,
     height: 10,
-    mines: 15
+    mines: 15,
   });
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [gameState, setGameState] = useState<GameState>('waiting');
+  const [gameState, setGameState] = useState<GameState>("waiting");
   const [time, setTime] = useState(0);
   const [board, setBoard] = useState<CellState[][]>([]);
   const [history, setHistory] = useState<GameHistory[]>(() => {
-    const savedHistory = localStorage.getItem('minesweeper-history');
+    const savedHistory = localStorage.getItem("minesweeper-history");
     return savedHistory ? JSON.parse(savedHistory) : [];
   });
 
   // 保存历史记录到本地存储
   useEffect(() => {
-    localStorage.setItem('minesweeper-history', JSON.stringify(history));
+    localStorage.setItem("minesweeper-history", JSON.stringify(history));
   }, [history]);
 
   useEffect(() => {
     let timer: number;
-    if (gameState === 'playing') {
+    if (gameState === "playing") {
       timer = window.setInterval(() => {
-        setTime(prev => prev + 1);
+        setTime((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(timer);
@@ -40,33 +52,37 @@ function App() {
 
   // 记录游戏结果
   useEffect(() => {
-    if (gameState === 'won' || gameState === 'lost') {
+    if (gameState === "won" || gameState === "lost") {
       const newGameRecord: GameHistory = {
         id: uuidv4(),
         date: new Date().toLocaleString(),
         result: gameState,
         settings: { ...settings },
-        time
+        time,
       };
-      setHistory(prev => [newGameRecord, ...prev]);
+      setHistory((prev) => [newGameRecord, ...prev]);
     }
   }, [gameState]);
 
   const resetGame = () => {
-    setGameState('waiting');
+    setGameState("waiting");
     setTime(0);
     initializeBoard();
   };
 
   const initializeBoard = () => {
-    const newBoard: CellState[][] = Array(settings.height).fill(null).map(() =>
-      Array(settings.width).fill(null).map(() => ({
-        isMine: false,
-        isRevealed: false,
-        isFlagged: false,
-        neighborMines: 0
-      }))
-    );
+    const newBoard: CellState[][] = Array(settings.height)
+      .fill(null)
+      .map(() =>
+        Array(settings.width)
+          .fill(null)
+          .map(() => ({
+            isMine: false,
+            isRevealed: false,
+            isFlagged: false,
+            neighborMines: 0,
+          }))
+      );
     setBoard(newBoard);
   };
 
@@ -75,15 +91,15 @@ function App() {
   }, [settings]);
 
   const handleGameWin = () => {
-    setGameState('won');
+    setGameState("won");
   };
 
   const handleGameLose = () => {
-    setGameState('lost');
+    setGameState("lost");
   };
 
   const clearHistory = () => {
-    if (confirm('确定要清空所有历史记录吗？')) {
+    if (confirm("确定要清空所有历史记录吗？")) {
       setHistory([]);
     }
   };
@@ -91,6 +107,15 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-2xl mx-auto">
+        <div className="mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>回到首页</span>
+          </Link>
+        </div>
         <div className="bg-white rounded-xl shadow-lg p-4">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -159,13 +184,9 @@ function App() {
         onClearHistory={clearHistory}
       />
 
-      <GameOverModal
-        gameState={gameState}
-        time={time}
-        onRestart={resetGame}
-      />
+      <GameOverModal gameState={gameState} time={time} onRestart={resetGame} />
     </div>
   );
 }
 
-export default App;
+export default MineSweeper;

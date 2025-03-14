@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from "react";
-import Board from "./components/Board";
-import GameControls from "./components/GameControls";
-import { GameState, Player, GameMode, Difficulty } from "./types/game";
-import { createEmptyBoard, checkWinner, isDraw, getAIMove } from "./logics";
+import { useState, useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
+import Board from "../modules/gomoku/components/Board";
+import GameControls from "../modules/gomoku/components/GameControls";
+import {
+  GameState,
+  Player,
+  GameMode,
+  Difficulty,
+} from "../modules/gomoku/types/game";
+import {
+  createEmptyBoard,
+  checkWinner,
+  isDraw,
+  getAIMove,
+} from "../modules/gomoku/logics";
 
-function App() {
+function Gomoku() {
   const [gameState, setGameState] = useState<GameState>({
     board: createEmptyBoard(),
     currentPlayer: "black",
@@ -114,6 +126,15 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
+        <div className="mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>回到首页</span>
+          </Link>
+        </div>
         <h1 className="text-3xl font-bold text-center mb-8">五子棋 Gomoku</h1>
 
         <div className="flex flex-col md:flex-row gap-8 items-start justify-center">
@@ -169,4 +190,4 @@ function App() {
   );
 }
 
-export default App;
+export default Gomoku;
