@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { Flag, Bomb } from "lucide-react";
-import { View } from "@tarojs/components";
-
+import { View, Text } from "@tarojs/components";
 import { GameState, CellState } from "../types";
 
 interface BoardProps {
@@ -27,7 +26,6 @@ export const Board: React.FC<BoardProps> = ({
     const newBoard = [...board];
     let minesPlaced = 0;
 
-    // Place mines
     while (minesPlaced < settings.mines) {
       const x = Math.floor(Math.random() * settings.width);
       const y = Math.floor(Math.random() * settings.height);
@@ -38,7 +36,6 @@ export const Board: React.FC<BoardProps> = ({
       }
     }
 
-    // Calculate neighbor mines
     for (let y = 0; y < settings.height; y++) {
       for (let x = 0; x < settings.width; x++) {
         if (!newBoard[y][x].isMine) {
@@ -179,8 +176,7 @@ export const Board: React.FC<BoardProps> = ({
   };
 
   const getCellColor = (cell: CellState) => {
-    if (gameState === "waiting" || !cell.isRevealed)
-      return "bg-gray-200 hover:bg-gray-300";
+    if (!cell.isRevealed) return "bg-gray-200 hover:bg-gray-300";
     if (cell.isMine) return "bg-red-500";
     return "bg-white";
   };
@@ -200,33 +196,6 @@ export const Board: React.FC<BoardProps> = ({
     return colors[count];
   };
 
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
-    null
-  );
-
-  const handleTouchStart = (x, y) => {
-    const timer = setTimeout(() => {
-      toggleFlag(x, y);
-    }, 500); // 500ms 长按触发标记
-
-    setLongPressTimer(timer);
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-  };
-
-  const handleTap = (x, y) => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-    handleCellClick(x, y);
-  };
-
   return (
     <View
       className="grid gap-1"
@@ -235,34 +204,36 @@ export const Board: React.FC<BoardProps> = ({
       }}
     >
       {board.map((row, y) =>
-        row.map((cell, x) => (
-          <View
-            key={`${x}-${y}`}
-            className={`
-              aspect-square flex items-center justify-center
-              text-lg font-bold transition-colors duration-200
-              ${getCellColor(cell)}
-              ${cell.isRevealed ? "" : "hover:bg-gray-300"}
-              border border-gray-300 rounded touch-target
-            `}
-            onClick={() => handleTap(x, y)}
-            onTouchStart={() => handleTouchStart(x, y)}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
-          >
-            {cell.isFlagged ? (
-              <Flag className="w-4 h-4 text-red-500" />
-            ) : cell.isRevealed ? (
-              cell.isMine ? (
-                <Bomb className="w-5 h-5 text-white" />
-              ) : (
-                <span className={getNumberColor(cell.neighborMines)}>
-                  {cell.neighborMines || ""}
-                </span>
-              )
-            ) : null}
-          </View>
-        ))
+        row.map((cell, x) => {
+
+          return (
+            <View
+              key={`${x}-${y}`}
+              className={`
+                aspect-square flex items-center justify-center
+                text-lg font-bold transition-colors duration-200
+                ${getCellColor(cell)}
+                ${cell.isRevealed ? "" : "active:bg-gray-300"}
+                border border-gray-300 rounded
+                touch-none
+              `}
+              onClick={() => handleCellClick(x, y)}
+              onLongPress={() => toggleFlag(x, y)}
+            >
+              {cell.isFlagged ? (
+                <Flag className="w-4 h-4 text-red-500" />
+              ) : cell.isRevealed ? (
+                cell.isMine ? (
+                  <Bomb className="w-5 h-5 text-white" />
+                ) : (
+                  <Text className={getNumberColor(cell.neighborMines)}>
+                    {cell.neighborMines || ""}
+                  </Text>
+                )
+              ) : null}
+            </View>
+          );
+        })
       )}
     </View>
   );

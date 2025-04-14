@@ -4,20 +4,18 @@ import {
   Timer,
   Bomb,
   RefreshCw,
-  History,
   ArrowLeft,
+  History,
 } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
-import { showModal, setStorage, getStorage } from "@tarojs/taro";
 import { Navigator, View } from "@tarojs/components";
 
-import { Board } from "./components/Board";
-import { SettingsModal } from "./components/SettingsModal";
-import { GameOverModal } from "./components/GameOverModal";
-import { HistoryModal } from "./components/HistoryModal";
-import { GameState, CellState, GameHistory } from "./types";
+import { Board } from "../../components/Board";
+import { SettingsModal } from "../../components/SettingsModal";
+import { GameOverModal } from "../../components/GameOverModal";
+import { HistoryModal } from "../../components/HistoryModal";
+import { GameState, CellState, GameHistory } from "../../types";
 
-function MineSweeper() {
+export default function Minesweeper() {
   const [settings, setSettings] = useState({
     width: 10,
     height: 10,
@@ -28,78 +26,29 @@ function MineSweeper() {
   const [gameState, setGameState] = useState<GameState>("waiting");
   const [time, setTime] = useState(0);
   const [board, setBoard] = useState<CellState[][]>([]);
-  const [history, setHistory] = useState<GameHistory[]>([]);
+  const [history, setHistory] = useState<GameHistory[]>(() => {
+    const saved = localStorage.getItem("minesweeper_history");
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
-    getStorage({
-      key: "minesweeper-history",
-      success: (res) => {
-        if (res.data) {
-          try {
-            const parsedData = JSON.parse(res.data);
-            setHistory(parsedData);
-          } catch (e) {
-            console.error("解析历史记录失败", e);
-          }
-        }
-      },
-      fail: () => {
-        // 获取失败时保持空数组
-        console.log("未找到历史记录，使用空数组");
-      },
-    });
-  }, []);
-
-  useEffect(() => {
-    if (history.length > 0) {
-      setStorage({
-        key: "minesweeper-history",
-        data: JSON.stringify(history),
-      });
-    }
+    localStorage.setItem("minesweeper_history", JSON.stringify(history));
   }, [history]);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>; // 修改类型定义
+    let timer: number;
     if (gameState === "playing") {
-      timer = setTimeout(function tick() {
+      timer = window.setInterval(() => {
         setTime((prev) => prev + 1);
-        timer = setTimeout(tick, 1000);
       }, 1000);
     }
-    return () => clearTimeout(timer);
-  }, [gameState]);
-
-  useEffect(() => {
-    if (gameState === "won" || gameState === "lost") {
-      const newGameRecord: GameHistory = {
-        id: uuidv4(),
-        date: new Date().toLocaleString(),
-        result: gameState,
-        settings: { ...settings },
-        time,
-      };
-      setHistory((prev) => [newGameRecord, ...prev]);
-    }
+    return () => clearInterval(timer);
   }, [gameState]);
 
   const resetGame = () => {
     setGameState("waiting");
     setTime(0);
-    // 确保完全重新初始化棋盘，清除所有状态
-    const newBoard: CellState[][] = Array(settings.height)
-      .fill(null)
-      .map(() =>
-        Array(settings.width)
-          .fill(null)
-          .map(() => ({
-            isMine: false,
-            isRevealed: false,
-            isFlagged: false,
-            neighborMines: 0,
-          }))
-      );
-    setBoard(newBoard);
+    initializeBoard();
   };
 
   const initializeBoard = () => {
@@ -124,30 +73,28 @@ function MineSweeper() {
 
   const handleGameWin = () => {
     setGameState("won");
+    addToHistory("won");
   };
 
   const handleGameLose = () => {
     setGameState("lost");
+    addToHistory("lost");
   };
 
-  const clearHistory = () => {
-    showModal({
-      title: "确认清空",
-      content: "确定要清空所有历史记录吗？",
-      confirmText: "确定",
-      cancelText: "取消",
-      success: function (res) {
-        if (res.confirm) {
-          setHistory([]);
-        }
-      },
-    });
+  const addToHistory = (result: "won" | "lost") => {
+    const newEntry: GameHistory = {
+      date: new Date().toISOString(),
+      duration: time,
+      result,
+      boardSize: settings,
+    };
+    setHistory((prev) => [newEntry, ...prev].slice(0, 10)); // Keep only last 10 games
   };
 
   return (
-    <View className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <View className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 transition-colors">
       <View className="max-w-2xl mx-auto">
-        <View className="mb-4">
+        <View className="mb-4 flex justify-between items-center">
           <Navigator
             url="/pages/home/index"
             className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 transition-colors"
@@ -155,43 +102,40 @@ function MineSweeper() {
             <ArrowLeft className="w-4 h-4" />
             <span>回到首页</span>
           </Navigator>
+          <View
+            onClick={() => setShowHistory(true)}
+            className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+          >
+            <History className="w-4 h-4" />
+            <span className="hidden sm:inline">History</span>
+          </View>
         </View>
-        <View className="bg-white rounded-xl shadow-lg p-4">
+
+        <View className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4">
           <View className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Bomb className="w-6 h-6" />
-              扫雷
-            </h1>
-            <View className="flex gap-2">
-              <button
-                onClick={() => setShowHistory(true)}
-                className="p-1.5 rounded-lg .active:bg-gray-100 transition-colors"
-                title="历史记录"
-              >
-                <History className="w-5 h-5 text-gray-600" />
-              </button>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="p-1.5 rounded-lg .active:bg-gray-100 transition-colors"
-                title="设置"
-              >
-                <Settings className="w-5 h-5 text-gray-600" />
-              </button>
+              Minesweeper
+            </span>
+            <View
+              onClick={() => setShowSettings(true)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300" />
             </View>
           </View>
 
-          <View className="flex justify-between items-center mb-4 bg-gray-50 p-2 rounded-lg">
-            <View className="flex items-center gap-1.5 text-gray-700">
+          <View className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
+            <View className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
               <Timer className="w-4 h-4" />
-              <span className="font-mono text-lg">{time}秒</span>
+              <span className="font-mono text-lg">{time}s</span>
             </View>
-            <button
-              onClick={() => resetGame()}
-              className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
-              title="重新开始"
+            <View
+              onClick={resetGame}
+              className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
-              <RefreshCw className="w-4 h-4 text-gray-600" />
-            </button>
+              <RefreshCw className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+            </View>
           </View>
 
           <Board
@@ -210,6 +154,7 @@ function MineSweeper() {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         settings={settings}
+        gameType="minesweeper"
         onSave={(newSettings) => {
           setSettings(newSettings);
           setShowSettings(false);
@@ -217,16 +162,14 @@ function MineSweeper() {
         }}
       />
 
+      <GameOverModal gameState={gameState} time={time} onRestart={resetGame} />
+
       <HistoryModal
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
+        gameType="minesweeper"
         history={history}
-        onClearHistory={clearHistory}
       />
-
-      <GameOverModal state={gameState} onRestart={resetGame} />
     </View>
   );
 }
-
-export default MineSweeper;

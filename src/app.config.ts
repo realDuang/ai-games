@@ -4,6 +4,7 @@ export default defineAppConfig({
     "pages/gomoku/index",
     "pages/mine-sweeper/index",
     "pages/snake/index",
+    "pages/sudoku/index",
   ],
   window: {
     backgroundTextStyle: "light",

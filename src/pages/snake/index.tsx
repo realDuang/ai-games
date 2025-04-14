@@ -1,215 +1,343 @@
-import React, { useEffect, useState } from "react";
-import { Settings, History, Sun, Moon, ArrowLeft } from "lucide-react";
-import { View, Navigator } from "@tarojs/components";
-import { showModal, setStorage, getStorage } from "@tarojs/taro";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  ArrowLeft,
+  History,
+  Settings,
+  RefreshCcw,
+  Timer,
+  Trophy,
+} from "lucide-react";
+import { Navigator, Text, View } from "@tarojs/components";
 
-import { GameBoard } from "./components/GameBoard";
-import { GameControls } from "./components/GameControls";
-import { GameHistory } from "./components/GameHistory";
-import { GameOverModal } from "./components/GameOverModal";
-import { TouchControls } from "./components/TouchControls";
-import { useGameLogic } from "./hooks/useGameLogic";
-import { useTheme } from "./hooks/useTheme";
-import { GameSettings, GameRecord, Direction, THEMES } from "./types";
+import { SettingsModal } from "../../components/SnakeSettings";
+import { HistoryModal } from "../../components/HistoryModal";
+import { GameOverModal } from "../../components/GameOverModal";
+import { Position, SnakeState, SnakeSettings, SnakeHistory } from "../../types";
 
-function App() {
-  const { theme, toggleTheme } = useTheme();
-  const themeColors = THEMES[theme];
+const GRID_SIZE = 20;
+const INITIAL_SNAKE: Position[] = [
+  { x: 10, y: 10 },
+  { x: 9, y: 10 },
+  { x: 8, y: 10 },
+];
 
-  const [settings, setSettings] = useState<GameSettings>({
-    speed: 5,
-    gridSize: 20,
-    appleCount: 3,
+const SPEED_MAP = {
+  slow: 200,
+  medium: 120,
+  fast: 80,
+};
+
+export default function Snake() {
+  const [gameState, setGameState] = useState<SnakeState>({
+    direction: "right",
+    body: INITIAL_SNAKE,
+    apples: [],
+    score: 0,
+    gameStatus: "waiting",
   });
 
-  const [records, setRecords] = useState<GameRecord[]>(() => {
-    // 初始状态会在 useEffect 中加载，这里返回空数组
-    return [];
+  const [settings, setSettings] = useState<SnakeSettings>({
+    speed: "medium",
+    appleCount: 3,
   });
 
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [time, setTime] = useState(0);
+  const [history, setHistory] = useState<SnakeHistory[]>(() => {
+    const saved = localStorage.getItem("snake_history");
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  const { gameState, changeDirection, resetGame } = useGameLogic(settings);
+  const gameLoopRef = useRef<number>();
+  const directionRef = useRef(gameState.direction);
 
-  // 使用 Taro 的存储 API 加载历史记录
   useEffect(() => {
-    getStorage({
-      key: "snakeGameRecords",
-      success: (res) => {
-        if (res.data) {
-          try {
-            const parsedData = JSON.parse(res.data);
-            setRecords(parsedData);
-          } catch (e) {
-            console.error("解析历史记录失败", e);
-          }
-        }
-      },
-      fail: () => {
-        console.log("未找到历史记录，使用空数组");
-      },
-    });
+    localStorage.setItem("snake_history", JSON.stringify(history));
+  }, [history]);
+
+  const generateApples = useCallback((count: number, snake: Position[]) => {
+    const apples: Position[] = [];
+    while (apples.length < count) {
+      const apple = {
+        x: Math.floor(Math.random() * GRID_SIZE),
+        y: Math.floor(Math.random() * GRID_SIZE),
+      };
+
+      const isOnSnake = snake.some(
+        (segment) => segment.x === apple.x && segment.y === apple.y
+      );
+      const isOnApple = apples.some((a) => a.x === apple.x && a.y === apple.y);
+
+      if (!isOnSnake && !isOnApple) {
+        apples.push(apple);
+      }
+    }
+    return apples;
   }, []);
 
-  useEffect(() => {
-    if (gameState.isGameOver) {
-      const newRecord: GameRecord = {
-        date: new Date().toLocaleString(),
-        score: gameState.score,
-        settings: settings,
-      };
-      const updatedRecords = [newRecord, ...records].slice(0, 10);
-      setRecords(updatedRecords);
+  const handleKeyPress = useCallback((e: KeyboardEvent) => {
+    const direction = directionRef.current;
+    const newDirection = (() => {
+      switch (e.key) {
+        case "ArrowUp":
+          return direction !== "down" ? "up" : direction;
+        case "ArrowDown":
+          return direction !== "up" ? "down" : direction;
+        case "ArrowLeft":
+          return direction !== "right" ? "left" : direction;
+        case "ArrowRight":
+          return direction !== "left" ? "right" : direction;
+        default:
+          return direction;
+      }
+    })();
+    directionRef.current = newDirection;
+  }, []);
 
-      // 使用 Taro 的存储 API 保存历史记录
-      setStorage({
-        key: "snakeGameRecords",
-        data: JSON.stringify(updatedRecords),
-      });
+  const moveSnake = useCallback(() => {
+    setGameState((prev) => {
+      if (prev.gameStatus !== "playing") return prev;
+
+      const newHead = { ...prev.body[0] };
+      switch (directionRef.current) {
+        case "up":
+          newHead.y = (newHead.y - 1 + GRID_SIZE) % GRID_SIZE;
+          break;
+        case "down":
+          newHead.y = (newHead.y + 1) % GRID_SIZE;
+          break;
+        case "left":
+          newHead.x = (newHead.x - 1 + GRID_SIZE) % GRID_SIZE;
+          break;
+        case "right":
+          newHead.x = (newHead.x + 1) % GRID_SIZE;
+          break;
+      }
+
+      // Check collision with self
+      const collision = prev.body.some(
+        (segment) => segment.x === newHead.x && segment.y === newHead.y
+      );
+
+      if (collision) {
+        return { ...prev, gameStatus: "lost" as const };
+      }
+
+      const newBody = [newHead, ...prev.body];
+      const appleEaten = prev.apples.findIndex(
+        (apple) => apple.x === newHead.x && apple.y === newHead.y
+      );
+
+      if (appleEaten >= 0) {
+        const newApples = [...prev.apples];
+        newApples.splice(appleEaten, 1);
+        newApples.push(...generateApples(1, newBody));
+
+        return {
+          ...prev,
+          body: newBody,
+          apples: newApples,
+          score: prev.score + 10,
+        };
+      }
+
+      newBody.pop();
+      return { ...prev, body: newBody };
+    });
+  }, [generateApples]);
+
+  useEffect(() => {
+    if (gameState.gameStatus === "playing") {
+      window.addEventListener("keydown", handleKeyPress);
+      gameLoopRef.current = window.setInterval(
+        moveSnake,
+        SPEED_MAP[settings.speed]
+      );
     }
-  }, [gameState.isGameOver]);
 
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      const keyDirections: { [key: string]: Direction } = {
-        ArrowUp: "UP",
-        ArrowDown: "DOWN",
-        ArrowLeft: "LEFT",
-        ArrowRight: "RIGHT",
-        w: "UP",
-        s: "DOWN",
-        a: "LEFT",
-        d: "RIGHT",
-      };
-
-      const direction = keyDirections[e.key.toLowerCase()];
-      if (direction) {
-        changeDirection(direction);
+    return () => {
+      window.removeEventListener("keydown", handleKeyPress);
+      if (gameLoopRef.current) {
+        clearInterval(gameLoopRef.current);
       }
     };
+  }, [gameState.gameStatus, handleKeyPress, moveSnake, settings.speed]);
 
-    // 小程序环境下，键盘事件可能不适用，但保留此代码以便在 H5 模式下使用
-    if (typeof window !== 'undefined') {
-      window.addEventListener("keydown", handleKeyPress);
-      return () => window.removeEventListener("keydown", handleKeyPress);
+  useEffect(() => {
+    let timer: number;
+    if (gameState.gameStatus === "playing") {
+      timer = window.setInterval(() => {
+        setTime((prev) => prev + 1);
+      }, 1000);
     }
-    return undefined;
-  }, [changeDirection]);
+    return () => clearInterval(timer);
+  }, [gameState.gameStatus]);
 
-  const handleSettingsChange = (newSettings: GameSettings) => {
-    setSettings(newSettings);
-    resetGame();
-  };
+  useEffect(() => {
+    if (gameState.gameStatus === "lost") {
+      const newHistory: SnakeHistory = {
+        date: new Date().toISOString(),
+        duration: time,
+        score: gameState.score,
+        speed: settings.speed,
+        appleCount: settings.appleCount,
+      };
+      setHistory((prev) => [newHistory, ...prev.slice(0, 9)]);
+    }
+  }, [
+    gameState.gameStatus,
+    gameState.score,
+    settings.appleCount,
+    settings.speed,
+    time,
+  ]);
 
-  const clearHistory = () => {
-    // 使用 Taro 的弹窗确认
-    showModal({
-      title: "确认清空",
-      content: "确定要清空所有历史记录吗？",
-      confirmText: "确定",
-      cancelText: "取消",
-      success: function (res) {
-        if (res.confirm) {
-          setRecords([]);
-          setStorage({
-            key: "snakeGameRecords",
-            data: "[]",
-          });
-          setShowHistory(false);
-        }
-      },
+  const startGame = useCallback(() => {
+    setGameState({
+      direction: "right",
+      body: INITIAL_SNAKE,
+      apples: generateApples(settings.appleCount, INITIAL_SNAKE),
+      score: 0,
+      gameStatus: "playing",
     });
-  };
+    setTime(0);
+    directionRef.current = "right";
+  }, [generateApples, settings.appleCount]);
 
   return (
-    <View
-      className={`min-h-screen ${themeColors.background} ${themeColors.text} p-4 md:p-8 transition-colors duration-300`}
-    >
-      <View className="max-w-4xl mx-auto">
-        <View className="mb-4">
+    <View className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 transition-colors">
+      <View className="max-w-2xl mx-auto">
+        <View className="mb-4 flex justify-between items-center">
           <Navigator
             url="/pages/home/index"
             className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>回到首页</span>
+            <Text>回到首页</Text>
           </Navigator>
-        </View>
-
-        <View className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 md:mb-8">
-          <View className="text-3xl md:text-4xl font-bold text-center md:text-left">
-            贪吃蛇
-          </View>
-          <View className="flex items-center justify-center md:justify-end gap-3">
-            <View
-              onClick={toggleTheme}
-              className={`flex items-center gap-2 px-3 md:px-4 py-2 ${themeColors.button} rounded-lg transition-colors text-sm md:text-base`}
-            >
-              {theme === "dark" ? (
-                <Sun className="w-4 h-4 md:w-5 md:h-5" />
-              ) : (
-                <Moon className="w-4 h-4 md:w-5 md:h-5" />
-              )}
-            </View>
-            <View
-              onClick={() => setShowSettings(true)}
-              className={`flex items-center gap-2 px-3 md:px-4 py-2 ${themeColors.button} rounded-lg transition-colors text-sm md:text-base`}
-            >
-              <Settings className="w-4 h-4 md:w-5 md:h-5" />
-              <View>设置</View>
-            </View>
-            <View
-              onClick={() => setShowHistory(true)}
-              className={`flex items-center gap-2 px-3 md:px-4 py-2 ${themeColors.button} rounded-lg transition-colors text-sm md:text-base`}
-            >
-              <History className="w-4 h-4 md:w-5 md:h-5" />
-              <View>历史记录</View>
-            </View>
+          <View
+            onClick={() => setShowHistory(true)}
+            className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+          >
+            <History className="w-4 h-4" />
+            <Text className="hidden sm:inline">History</Text>
           </View>
         </View>
 
-        <View className="text-center mb-4">
-          <View className="text-xl md:text-2xl text-opacity-80">
-            得分: <View className="font-bold" style={{ display: 'inline' }}>{gameState.score}</View>
+        <View className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4">
+          <View className="flex justify-between items-center mb-4">
+            <Text className="text-2xl font-bold text-gray-900 dark:text-white">
+              Snake
+            </Text>
+            <View className="flex items-center gap-2">
+              <View
+                onClick={() => setShowSettings(true)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              </View>
+              <View
+                onClick={startGame}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <RefreshCcw className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              </View>
+            </View>
           </View>
+
+          <View className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
+            <View className="flex items-center gap-4">
+              <View className="flex items-center gap-1.5">
+                <Timer className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                <span className="font-mono text-lg text-gray-700 dark:text-gray-300">
+                  {time}s
+                </span>
+              </View>
+              <View className="flex items-center gap-1.5">
+                <Trophy className="w-4 h-4 text-yellow-500" />
+                <span className="font-mono text-lg text-gray-700 dark:text-gray-300">
+                  {gameState.score}
+                </span>
+              </View>
+            </View>
+          </View>
+
+          <View
+            className="grid gap-[2px] bg-gray-200 dark:bg-gray-700 p-[2px] rounded-lg aspect-square"
+            style={{
+              gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
+            }}
+          >
+            {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => {
+              const x = i % GRID_SIZE;
+              const y = Math.floor(i / GRID_SIZE);
+              const isSnake = gameState.body.some(
+                (segment) => segment.x === x && segment.y === y
+              );
+              const isApple = gameState.apples.some(
+                (apple) => apple.x === x && apple.y === y
+              );
+              const isHead =
+                gameState.body[0]?.x === x && gameState.body[0]?.y === y;
+
+              return (
+                <View
+                  key={i}
+                  className={`aspect-square rounded-sm ${
+                    isSnake
+                      ? `${
+                          isHead
+                            ? "bg-green-600 dark:bg-green-500"
+                            : "bg-green-500 dark:bg-green-600"
+                        }`
+                      : isApple
+                      ? "bg-red-500 dark:bg-red-600"
+                      : "bg-white dark:bg-gray-800"
+                  }`}
+                />
+              );
+            })}
+          </View>
+
+          {gameState.gameStatus === "waiting" && (
+            <View className="mt-4 text-center">
+              <button
+                onClick={startGame}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Start Game
+              </button>
+            </View>
+          )}
         </View>
-
-        <View className="flex justify-center">
-          <GameBoard gameState={gameState} settings={settings} theme={theme} />
-        </View>
-
-        <TouchControls onDirectionChange={changeDirection} theme={theme} />
-
-        {showSettings && (
-          <GameControls
-            settings={settings}
-            onSettingsChange={handleSettingsChange}
-            onRestart={resetGame}
-            onClose={() => setShowSettings(false)}
-            theme={theme}
-          />
-        )}
-
-        {showHistory && (
-          <GameHistory
-            records={records}
-            onClose={() => setShowHistory(false)}
-            onClear={clearHistory}
-            theme={theme}
-          />
-        )}
-
-        {gameState.isGameOver && (
-          <GameOverModal
-            score={gameState.score}
-            onRestart={resetGame}
-            theme={theme}
-          />
-        )}
       </View>
+
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        settings={settings}
+        onSave={(newSettings) => {
+          setSettings(newSettings);
+          setShowSettings(false);
+          if (gameState.gameStatus === "playing") {
+            startGame();
+          }
+        }}
+      />
+
+      <GameOverModal
+        gameState={gameState.gameStatus}
+        time={time}
+        onRestart={startGame}
+      />
+
+      <HistoryModal
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        history={history}
+        gameType="snake"
+      />
     </View>
   );
 }
-
-export default App;
